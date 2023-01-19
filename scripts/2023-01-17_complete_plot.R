@@ -6,6 +6,7 @@ library(cowplot)
 library(fs)
 library(here)
 library(shiny)
+library(plotly)
 
 # Setting up Here package
 
@@ -91,7 +92,7 @@ write.csv(file.path(here("data",
 
 
 # Plot the data:
-  # Add the first layer = orignal data traces with geom_line
+  # Add the first layer = original data traces with geom_line
    # + remove the legend
   # Add the second layer = 95CI as ribbon (ymax and min)
   # Add the third layer = the trace for the mean
@@ -118,8 +119,29 @@ plot <- ggplot(df_tidy_formatted) +
             linewidth=1,) +
   facet_wrap(~ condition)
 
+
+# Use Plot_ly to obtain time point for TG answer:
+stats_df_tidy_formatted %>%
+  group_by(condition) %>%
+  plot_ly(x = ~Time, 
+          y = ~ mean) %>%
+  add_lines(color = ~condition) %>%
+  layout(legend = list(orientation = 'h'))
+
+    # group_by()
+      # Conditions defined with group
+    # plot_ly()
+      # What to plot defined in x and y
+    # add_lines:
+      # Plot values as line (link the points and do not show the single points)
+    # layout(legend)
+      # Position the legend  below the graph
+
+
+
 # Integrate the area under the curve.
 ## Source= https://smin95.github.io/dataviz/calculating-area-under-a-curve.html
+
 
 #####------------------#####
   #First test done on filtered data
@@ -151,6 +173,39 @@ plot <- ggplot(df_tidy_formatted) +
 #This is OK
 #####------------------#####
 
+    # Filter the dataset (df_tidy_formatted) according to values from plotly
+      # In this example: 1000 s for WT and 1130 for ORAI1
+df_TG_answer <- filter(df_tidy_formatted, (grepl("WT", condition) & Time > 1000) | (grepl("ORAI1", condition) & Time > 1130))
+
+      # Get the number of point TG answer for each condition
+        # Aim is to subset the df for the smallest value
+     time_point <- df_TG_answer %>% group_by(condition) %>% summarise(n_distinct(Time))      
+     min(time_point$`n_distinct(Time)`)
+     
+        # Create a list of unique Time elements      
+ulist <- unique(df_TG_answer$Time)  
+      
+
+
+        # Old version filter in two separate df:
+          # df_TG_answer_WT <- filter(df_tidy_formatted, grepl("WT",condition) & Time > 1000)
+          # df_TG_answer_ORAI1 <- filter(df_tidy_formatted, grepl("ORAI1",condition) & Time > 1130)
+# This creates two df with filtered data for each condition 
+      # grepl = keep the regular expression (grepl) defined
+      # !grepl = drop the regular expression (grepl) defined 
+
+# This filters as desired
+  # Need to adjust length of df then merge them. 
+    # Determine the length of TG answer for each condition:
+#
+
+
+
+      
+
+
+    
+      
 # Required improvements:
 # Automate the filtering for each condition
 # Select the time point to analyze
@@ -161,12 +216,6 @@ plot <- ggplot(df_tidy_formatted) +
 # Choose the length
 # Define an arbitrary scale (images every 5sec --> Start at 0 until 'number_of_points*5' )
 
-# Use Plot_ly to obtain time point for TG answer:
-      stats_df_tidy_formatted %>%
-        group_by(condition) %>%
-        plot_ly(x = ~Time, 
-                y = ~ mean) %>%
-        add_lines(color = ~condition)
 
 
       
