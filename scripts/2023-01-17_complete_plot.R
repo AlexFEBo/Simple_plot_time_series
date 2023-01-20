@@ -68,7 +68,11 @@ df_tidy_formatted %>%
   # In addition we add the 95CI on the data
   # 95CI need to be calculated:
 
+# Define the desired confidence level:
 Confidence_level = 0.95
+
+
+# Generate the stats for the df
 
 stats_df_tidy_formatted <- df_tidy_formatted %>% 
   group_by(Time, condition) %>% 
@@ -80,6 +84,8 @@ stats_df_tidy_formatted <- df_tidy_formatted %>%
          mean_CI_lo = mean + qt((1-Confidence_level)/2, n-1) * sem,
          mean_CI_hi = mean - qt((1-Confidence_level)/2, n-1) * sem
   )
+
+# Save the df in csv format
 
 stats_df_tidy_formatted %>%
 write.csv(file.path(here("data",
@@ -119,14 +125,95 @@ plot <- ggplot(df_tidy_formatted) +
             linewidth=1,) +
   facet_wrap(~ condition)
 
+# Save the plot (width and height to be modified as desired)
+
+ggsave("output/plot.png", width = 6, height = 6)
+
 
 # Use Plot_ly to obtain time point for TG answer:
-stats_df_tidy_formatted %>%
+plot_ly <- stats_df_tidy_formatted %>%
   group_by(condition) %>%
   plot_ly(x = ~Time, 
           y = ~ mean) %>%
   add_lines(color = ~condition) %>%
   layout(legend = list(orientation = 'h'))
+
+# Export the interactive plot as png
+    # Note that the function plotly::export is deprecated: Use 'orca' instead
+
+plotly::export(p = plot_ly,
+               file = "output/plot_ly.png")
+# Export the intereactive plot as html (to be read in web browser)
+
+htmlwidgets::saveWidget(plot_ly, "output/test.html")
+
+
+#####------------------#####
+  # Test for implementing calculation of area under the curve #
+## Requirements:
+    
+  # Determine initial Timepoint for calculation
+      # Filter the dataset (df_tidy_formatted) according to values from plotly
+        # In this example: 1000 s for WT and 1130 for ORAI1
+df_TG_answer <- filter(df_tidy_formatted, (grepl("WT", condition) & Time > 1130) | (grepl("ORAI1", condition) & Time > 1000))
+
+  # Determine the duration for which area should be calculated
+    # Get the number of point TG answer for each condition
+      # Choose the shortest answer time between condition to proceed with calculation
+# This determines the number of Timepoints following SOCE answer for each condition and stores them in the df time_point
+time_point <- df_TG_answer %>% group_by(condition) %>% summarise(n_distinct(Time))
+
+# This gives the minimum value from the df time_point
+min(time_point$'n_distinct(Time)')
+
+# Now we want to keep the same number of time point for all condition.
+  # We will filter the df using the minimum number of timepoint determined above.
+  # the value for N corresponds to the value from above (min(time_points$'n_distinct(Time)'))
+adjusted_SOCE_answer <- df_TG_answer %>% 
+  group_by(Sample, condition) %>% 
+  slice_head(n=153)
+
+
+# Now we want to modify the value from Time to "synchronize" our conditions 
+
+df_AU_SOCE <- adjusted_SOCE_answer %>%
+  group_by(Sample, condition) %>%
+  mutate(Time_AU = seq(from = 0, to = 152*5, by = 5))
+  # This works well, pay attention the number 152 comes from the line: (min(time_points$'n_distinct(Time)')) minus 1 (as we start from 0 which is considered one)
+
+# Now we need to adjust normalize the y axis
+    # Read this blog for choosing best method: https://thenode.biologists.com/data-normalization/research/
+
+df_SOCE_normalized <- df_AU_SOCE %>%
+  group_by(Sample, condition) %>%
+             mutate(Norm_value = Value / dplyr::first(Value))
+
+# This looks OK.
+
+
+# It would be good to plot each step to verify that everything works fine
+# We should then be ready to proceed with calculation of area undeer the curve
+
+#### --------------------------------------- ####
+
+
+
+# Data from df grouped by Sample and condition and 160 first value stored into the df test
+
+
+## Test grouping the df by Sample and slice for the first x(=160 => minimum time points defined above)
+
+df_TG_answer_sample <- df_TG_answer %>% group_by(Time)
+
+fitlered_TG_answer <- df_TG_answer_sample %>% slice(160)
+
+# Create a list of unique Time elements      
+ulist <- unique(df_TG_answer$Time)  
+
+
+df_160_test <- df_TG_answer %>% slice(1:160)
+
+
 
     # group_by()
       # Conditions defined with group
